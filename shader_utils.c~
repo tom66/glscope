@@ -6,9 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <epoxy/gl.h>
-#include <epoxy/glx.h>
-#include <epoxy/egl.h>
+#include <GL/glew.h>
 
 /**
  * Store all the file's contents in memory, useful to pass shaders

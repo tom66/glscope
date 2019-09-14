@@ -1,0 +1,11 @@
+LDLIBS=-lm -lglut -lepoxy -lGL -lmmal -lbcm_host -lvcos -lmmal_core -lmmal_util -lmmal_vc_client
+LDFLAGS=-L/opt/vc/lib
+CFLAGS=-I/opt/vc/include
+CPPFLAGS=-g -O1
+all: egraph
+clean:
+	rm -f *.o graph
+egraph: egraph.o shader_utils.o raspiraw.o RaspiCLI.o
+graph: graph.o shader_utils.o
+
+.PHONY: all clean

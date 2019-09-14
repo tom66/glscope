@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
+from OpenGL.GL import *
+from OpenGL.GL import shaders
+import pyshaders
+import scope
+
+builder = Gtk.Builder()
+builder.add_from_file("test.glade")
+
+# objects in the .glade file
+obtemplate = ["scopewin", "brightadj", "brightscale", "gl"]
+ob = {i: builder.get_object(i) for i in obtemplate }
+
+first_render = True
+
+def bright_cb(self):
+    global scope, gl
+    br = self.get_value()
+    print ("br=%d" % br)
+    scope.set_bright(br/5)
+    gl.queue_render()
+
+def area_realize (self, gl_area):
+    error = gl_area.get_error()
+    if error != None:
+        print (error)
+    #else:
+    #    print (gl_area, "realize... fine so far")
+    
+
+def area_render(area, context):
+    global first_render
+    if first_render:
+        scope.init()
+        first_render = False
+    glClearColor (0,0,0, 1.0)
+    glClear (GL_COLOR_BUFFER_BIT)
+    glBegin(GL_LINES)
+    glColor3f(.25,.25,.25)
+    for x in range(-4,4):
+        glVertex2f(x/4,-1)
+        glVertex2f(x/4,1)
+    for y in range(-4,4):
+        glVertex2f(-1,y/4)
+        glVertex2f(1,y/4)
+    glEnd()
+
+    #python_display()
+    scope.display()
+
+    #glFlush()
+    #print ("rendering... done")
+    return True
+
+def gl_init_python(ver, frag):
+    shader = pyshaders.from_files_names(ver, frag)
+    shader.use()
+    shader.uniforms.offset_x = 0
+    shader.uniforms.scale_x = 1
+    shader.uniforms.mytexture = 0
+    #glBindBuffer(GL_ARRAY_BUFFER, vbo)
+
+    #glEnableVertexAttribArray(attribute_coord1d)
+    c1d = shader.attributes.coord1d
+    c1d.enable()
+    c1d.point_to(0, GL_FLOAT, 1, False, 0)
+    #glVertexAttribPointer(attribute_coord1d, 1, GL_FLOAT, GL_FALSE, 0, 0);
+    
+    #GLfloat line[NPOINTS];
+
+    #for i in range(NPOINTS):
+    #line[i] = (i - ((NPOINTS-1)/2.0)) / ((NPOINTS-1)/2.0)
+    #glBufferData(GL_ARRAY_BUFFER, sizeof line, line, GL_STATIC_DRAW)
+    
+
+def python_display():
+    glUseProgram(program)
+    glUniform1i(uniform_mytexture, 0)
+
+    glUniform1f(uniform_offset_x, offset_x)
+    glUniform1f(uniform_scale_x, scale_x)
+    #glUniform1f(uniform_NWAVES, NWAVES);
+    
+    #glClearColor(0.0, 0.0, 0.0, 0.0);
+    #glClear(GL_COLOR_BUFFER_BIT);
+    #glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    
+    #glEnableVertexAttribArray(attribute_coord1d)
+    #glVertexAttribPointer(attribute_coord1d, 1, GL_FLOAT, GL_FALSE, 0, 0)
+
+print(ob)
+ob['scopewin'].show_all()
+ob['brightadj'].set_value(19)
+ob['brightadj'].connect("value-changed", bright_cb)
+#win = Gtk.Window()
+#win.connect("destroy", Gtk.main_quit)
+#win.show_all()
+gl = ob['gl']
+#init_python(gl.get_context())
+gl_init_python("graph.v.glsl","graph.f.glsl")
+
+gl.connect('render',area_render)
+gl.connect('realize', area_realize)
+
+Gtk.main()

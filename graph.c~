@@ -4,9 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h> /* usleep */
-#include <epoxy/gl.h>
-#include <epoxy/glx.h>
-#include <epoxy/egl.h>
+#include <GL/glew.h>
 #include <GL/glut.h>
 
 #include "shader_utils.h"

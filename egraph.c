@@ -4,10 +4,23 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h> /* usleep */
+
+
+//#include "EGL/eglext.h"
 #include <epoxy/gl.h>
 #include <epoxy/glx.h>
 #include <epoxy/egl.h>
+//#include <GL/glew.h>
 #include <GL/glut.h>
+#include <GL/glu.h>
+#include <EGL/egl.h>
+
+#include "interface/mmal/mmal.h"
+#include "interface/mmal/mmal_buffer.h"
+#include "interface/mmal/util/mmal_default_components.h"
+#include "interface/mmal/util/mmal_util.h"
+#include "interface/mmal/util/mmal_util_params.h"
+#include "interface/mmal/util/mmal_connection.h"
 
 #include "shader_utils.h"
 
@@ -38,7 +51,10 @@ GLuint texture_id[NTEXTURES];
 
 float offset_x = 0.0;
 float scale_x = 1.0;
-
+GLuint cam_ytex, cam_utex, cam_vtex;
+EGLImageKHR yimg = EGL_NO_IMAGE_KHR;
+EGLImageKHR uimg = EGL_NO_IMAGE_KHR;
+EGLImageKHR vimg = EGL_NO_IMAGE_KHR;
 
 int init_resources() {
 	program = create_program("graph.v.glsl", "graph.f.glsl");
@@ -80,6 +96,7 @@ int init_resources() {
 
 	/* Upload the texture with our datapoints */
 	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &cam_ytex);
 	glGenTextures(NTEXTURES, texture_id);
 	for (int i=0; i<NTEXTURES; i++) {
 		printf("texture %d has id %d\n", i, texture_id[i]);
@@ -212,17 +229,50 @@ void special(int key, int x, int y) {
 
 	glutPostRedisplay();
 }
+static void check() {
+	int q;
+	do {
+		q=glGetError();
+		if (q) {
+			printf("glError: %s (%x)\n", gluErrorString(q), q);
+		}
+	} while (q);
+}
 
 void free_resources() {
 	glDeleteProgram(program);
 }
 
-int main(int argc, char *argv[]) {
+void graph_set_buffer(MMAL_BUFFER_HEADER_T *buf) {
+	printf("%08x %d\n", buf->data, buf->length);
+	check();
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
+	check();
+#if 0
+	if(yimg != EGL_NO_IMAGE_KHR){
+		eglDestroyImageKHR(GDisplay, yimg);
+		yimg = EGL_NO_IMAGE_KHR;
+	}
+
+	yimg = eglCreateImageKHR(GDisplay, 
+			EGL_NO_CONTEXT, 
+			EGL_IMAGE_BRCM_RAW_PIXELS, //EGL_IMAGE_BRCM_MULTIMEDIA_Y, 
+			(EGLClientBuffer) buf->data, 
+			NULL);
+	check();
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, yimg);
+	check();
+#endif
+}
+
+int initgraph(int argc, char *argv[]) {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB);
-	glutInitWindowSize(1920, 1080);
+	glutInitWindowSize(1280, 600);
+	glEnable(GL_TEXTURE_EXTERNAL_OES);
 	glutCreateWindow("testy");
 
+#if 0
 	GLenum glew_status = glewInit();
 
 	if (GLEW_OK != glew_status) {
@@ -234,9 +284,20 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "No support for OpenGL 2.0 found\n");
 		return 1;
 	}
-
+#endif
 	GLint max_units;
 
+	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &max_units);
+	if (max_units < 1) {
+		fprintf(stderr, "Your GPU does not have any vertex texture image units\n");
+		return 1;
+	}
+#if 0
+	if (!glIsEnabled (GL_TEXTURE_EXTERNAL_OES)) {
+		fprintf(stderr, "no TEXTURE_EXTERNAL_OES\n");
+		return 1;
+	}
+#endif
 	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &max_units);
 	if (max_units < 1) {
 		fprintf(stderr, "Your GPU does not have any vertex texture image units\n");
@@ -259,9 +320,9 @@ int main(int argc, char *argv[]) {
 	if (init_resources()) {
 		glutDisplayFunc(display);
 		glutSpecialFunc(special);
-		glutMainLoop();
 	}
 
-	free_resources();
 	return 0;
 }
+
+//free_resources();

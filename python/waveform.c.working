@@ -4,13 +4,30 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h> /* usleep */
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/time.h>
+
+//#include "EGL/eglext.h"
 #include <epoxy/gl.h>
 #include <epoxy/glx.h>
 #include <epoxy/egl.h>
-#include <GL/glut.h>
+//#include <GL/glew.h>
+
+//#include <GL/glut.h>
+#define GLFW_EXPOSE_NATIVE_X11
+#define GLFW_EXPOSE_NATIVE_EGL
+
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+#include <GL/glu.h> //gluGetError
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <EGL/eglext_brcm.h>
 
 #include "shader_utils.h"
-
+#include "scope.h"
 GLuint program;
 GLint attribute_coord1d;
 GLint uniform_offset_x;
@@ -25,11 +42,12 @@ GLint uniform_color;
 bool interpolate = false;
 bool clamp = false;
 bool showpoints = false;
+double bright = 1;
 
 #define NPOINTS 2048
 #define TEXSIZE 2048
 #define NTEXTURES (NPOINTS/TEXSIZE)
-#define NWAVES 200
+#define NWAVES 256
 
 GLuint vbo;
 GLbyte graph[NTEXTURES][TEXSIZE * NWAVES];
@@ -38,14 +56,21 @@ GLuint texture_id[NTEXTURES];
 
 float offset_x = 0.0;
 float scale_x = 1.0;
+GLuint cam_ytex, cam_utex, cam_vtex;
+EGLImageKHR yimg = EGL_NO_IMAGE_KHR;
+EGLImageKHR uimg = EGL_NO_IMAGE_KHR;
+EGLImageKHR vimg = EGL_NO_IMAGE_KHR;
 
+EGLDisplay GDisplay;
+
+GLFWwindow* win;
 
 int init_resources() {
 	program = create_program("graph.v.glsl", "graph.f.glsl");
 	//program = create_program("graph.v.glsl", "antialias.f.glsl");
 	if (program == 0)
 		return 0;
-	printf("texture_id=%p\n",texture_id);
+	//printf("texture_id=%p\n",texture_id);
 
 	attribute_coord1d = get_attrib(program, "coord1d");
 	uniform_offset_x = get_uniform(program, "offset_x");
@@ -80,6 +105,7 @@ int init_resources() {
 
 	/* Upload the texture with our datapoints */
 	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &cam_ytex);
 	glGenTextures(NTEXTURES, texture_id);
 	for (int i=0; i<NTEXTURES; i++) {
 		printf("texture %d has id %d\n", i, texture_id[i]);
@@ -117,18 +143,27 @@ int init_resources() {
 
 	return 1;
 }
-static unsigned int fps_start = 0;
-static unsigned int fps_frames = 0;
 
-void display() {
+void graph_set_bright(double f) {
+  bright = f;
+}
+
+static unsigned int fps_frames = 0;
+static struct timeval fps_start = {0,0};
+
+void graph_display() {
+	assert(!glGetError());
 	  /* FPS count */
   {
     fps_frames++;
-    int delta_t = glutGet(GLUT_ELAPSED_TIME) - fps_start;
-    if (delta_t > 1000) {
-		printf("%f\n",1000.0 * fps_frames / delta_t);
-      fps_frames = 0;
-      fps_start = glutGet(GLUT_ELAPSED_TIME);
+    struct timeval now, delta;
+    gettimeofday (&now, NULL);
+    timersub (&now, &fps_start, &delta);
+    if (delta.tv_sec) {
+	printf("fps %f\n",1000000.0 * fps_frames / (delta.tv_sec*100000 + delta.tv_usec));
+	fflush(stdout);
+	fps_frames = 0;
+        fps_start = now;
     }
   }
 
@@ -155,7 +190,7 @@ void display() {
 	/* Draw points as well, if requested */
 	//if (showpoints)
 
-	float scale = 1./NWAVES/2;
+	float scale = bright/NWAVES/2;
 	for (int j=0; j<NTEXTURES; j++) {
 		//int j=1;
 		glBindTexture(GL_TEXTURE_2D, texture_id[j]);
@@ -166,7 +201,7 @@ void display() {
 			glUniform1f(uniform_nxtiles, NTEXTURES);
 			glUniform1f(uniform_xtile, ((float)j*2-NTEXTURES+1)/NTEXTURES);
 			//			glUniform4f(uniform_color, (j&1)*scale,((j&2)>>1)*scale,((j&4)>>2)*scale,1);
-			glUniform4f(uniform_color, 1*scale,4*scale,1*scale,1);
+			glUniform4f(uniform_color, 4*scale,2*scale,0.5*scale,1);
 			//glUniform4f(uniform_color, (i&1)*scale,((i&2)>>1)*scale,((i&4)>>2)*scale,1);
 
 			//glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, NPOINTS, NWAVES, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, graph+NPOINTS*i);
@@ -174,55 +209,85 @@ void display() {
 		}
 		//		glutSwapBuffers();	usleep(50000);
 	}
-	glutSwapBuffers();
-	glutPostRedisplay();
+	assert(!glGetError());
+	glfwSwapBuffers(win);
+	//glutSwapBuffers();
+	//glutPostRedisplay();
 }
 
-void special(int key, int x, int y) {
-	switch (key) {
-	case GLUT_KEY_F1:
-		interpolate = !interpolate;
-		printf("Interpolation is now %s\n", interpolate ? "on" : "off");
-		break;
-	case GLUT_KEY_F2:
-		clamp = !clamp;
-		printf("Clamping is now %s\n", clamp ? "on" : "off");
-		break;
-	case GLUT_KEY_F3:
-		showpoints = !showpoints;
-		printf("Showing points is now %s\n", showpoints ? "on" : "off");
-		break;
-	case GLUT_KEY_LEFT:
-		offset_x -= 0.1;
-		break;
-	case GLUT_KEY_RIGHT:
-		offset_x += 0.1;
-		break;
-	case GLUT_KEY_UP:
-		scale_x *= 1.5;
-		break;
-	case GLUT_KEY_DOWN:
-		scale_x /= 1.5;
-		break;
-	case GLUT_KEY_HOME:
-		offset_x = 0.0;
-		scale_x = 1.0;
-		break;
-	}
-
-	glutPostRedisplay();
+static void check_real(const char *file, int line) {
+	int q;
+	do {
+		q=glGetError();
+		if (q) {
+			printf("%s:%d: glError: %s (%x)\n", file, line, gluErrorString(q), q);
+		}
+	} while (q);
 }
+
+#define check() check_real(__FILE__, __LINE__)
+#define C(...) __VA_ARGS__;check();
 
 void free_resources() {
 	glDeleteProgram(program);
 }
 
-int main(int argc, char *argv[]) {
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB);
-	glutInitWindowSize(1920, 1080);
-	glutCreateWindow("testy");
 
+void graph_set_buffer(MMAL_BUFFER_HEADER_T *buf) {
+  //printf("cb: %08x %d tid=%d\n", buf->data, buf->length, syscall(SYS_gettid));
+	assert(!glGetError());
+#if 0
+	C(glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex));
+
+	if(yimg != EGL_NO_IMAGE_KHR){
+		eglDestroyImageKHR(GDisplay, yimg);
+		yimg = EGL_NO_IMAGE_KHR;
+	}
+
+	yimg = eglCreateImageKHR(GDisplay, 
+			EGL_NO_CONTEXT, 
+			/*EGL_IMAGE_BRCM_RAW_PIXELS,*/ EGL_IMAGE_BRCM_MULTIMEDIA_Y, 
+			(EGLClientBuffer) buf->data, 
+			NULL);
+	check();
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, yimg);
+	check();
+#else
+	int i=0;
+
+	for (int i=0; i<NTEXTURES; i++) {
+	  void *ptr = (uint8_t *)buf->data; // + i * TEXSIZE * NWAVES;
+	  glBindTexture(GL_TEXTURE_2D, texture_id[i]);
+	  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, TEXSIZE, NWAVES, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, ptr);
+		/* Set texture wrapping mode */
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		
+		/* Set texture interpolation mode */
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, interpolate ? GL_LINEAR : GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, interpolate ? GL_LINEAR : GL_NEAREST);
+	}
+
+#endif
+}
+
+int initgraph(void) {
+	glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+	if (!glfwInit()) {
+		fprintf(stderr, "glfw init failed\n");
+		return 1;
+	}
+		
+ 	if (!(win=glfwCreateWindow(1280, 720, "testy", NULL, NULL))) {
+		fprintf(stderr, "window create failed\n");
+		return 1;
+	}
+	glfwMakeContextCurrent(win);
+	GDisplay = glfwGetEGLDisplay();
+
+	C(glEnable(GL_TEXTURE_EXTERNAL_OES));
+
+	printf ("win=%p tid=%d\n",win, syscall(SYS_gettid));
+#if 0
 	GLenum glew_status = glewInit();
 
 	if (GLEW_OK != glew_status) {
@@ -234,10 +299,21 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "No support for OpenGL 2.0 found\n");
 		return 1;
 	}
-
+#endif
 	GLint max_units;
 
-	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &max_units);
+	C(glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &max_units));
+	if (max_units < 1) {
+		fprintf(stderr, "Your GPU does not have any vertex texture image units\n");
+		return 1;
+	}
+#if 0
+	if (!glIsEnabled (GL_TEXTURE_EXTERNAL_OES)) {
+		fprintf(stderr, "no TEXTURE_EXTERNAL_OES\n");
+		return 1;
+	}
+#endif
+	C(glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &max_units));
 	if (max_units < 1) {
 		fprintf(stderr, "Your GPU does not have any vertex texture image units\n");
 		return 1;
@@ -249,19 +325,11 @@ int main(int argc, char *argv[]) {
 	if (range[1] < 5.0)
 		fprintf(stderr, "WARNING: point sprite range (%f, %f) too small\n", range[0], range[1]);
 
-	printf("Use left/right to move horizontally.\n");
-	printf("Use up/down to change the horizontal scale.\n");
-	printf("Press home to reset the position and scale.\n");
-	printf("Press F1 to toggle interpolation.\n");
-	printf("Press F2 to toggle clamping.\n");
-	printf("Press F3 to toggle drawing points.\n");
-
-	if (init_resources()) {
-		glutDisplayFunc(display);
-		glutSpecialFunc(special);
-		glutMainLoop();
-	}
-
-	free_resources();
+	if (!init_resources())
+		return 1;
+	//glutDisplayFunc(display);
+	//glutSpecialFunc(special);
+	//abort();
+	assert(!glGetError());
 	return 0;
 }
