@@ -9,28 +9,14 @@
     <property name="page_increment">5</property>
   </object>
   <object class="GtkApplicationWindow" id="scopewin">
+    <property name="width_request">1000</property>
+    <property name="height_request">800</property>
     <property name="can_focus">False</property>
     <property name="show_menubar">False</property>
     <child>
-      <placeholder/>
-    </child>
-    <child>
-      <object class="GtkFixed">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <child>
-          <object class="GtkGLArea" id="gl">
-            <property name="width_request">465</property>
-            <property name="height_request">419</property>
-            <property name="visible">True</property>
-            <property name="app_paintable">True</property>
-            <property name="can_focus">False</property>
-          </object>
-          <packing>
-            <property name="x">230</property>
-            <property name="y">124</property>
-          </packing>
-        </child>
         <child>
           <object class="GtkBox">
             <property name="width_request">100</property>
@@ -54,7 +40,6 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_right">19</property>
                 <property name="label" translatable="yes">B</property>
               </object>
               <packing>
@@ -94,8 +79,45 @@
             </child>
           </object>
           <packing>
-            <property name="x">138</property>
-            <property name="y">330</property>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkGLArea" id="gl">
+            <property name="width_request">100</property>
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <property name="app_paintable">True</property>
+            <property name="can_focus">False</property>
+            <property name="auto_render">False</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </object>

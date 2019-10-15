@@ -44,7 +44,7 @@ bool clamp = false;
 bool showpoints = false;
 double bright = 1;
 
-#define NPOINTS 2048
+#define NPOINTS 8192
 #define TEXSIZE 2048
 #define NTEXTURES (NPOINTS/TEXSIZE)
 #define NWAVES 256
