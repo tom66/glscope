@@ -1,2 +1,0 @@
-int initgraph(int argc, char *argv[]);
-void graph_set_buffer(MMAL_BUFFER_HEADER_T *buf);
