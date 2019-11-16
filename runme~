@@ -1,4 +1,0 @@
-tmux new Xorg&
-export DISPLAY=:0
-(cd ~/raspiraw;./camera_i2c)
-./fgraph -md 7 -t 100000  --height 480 --top 0 --fps 60 -sr 1 -o /dev/null
