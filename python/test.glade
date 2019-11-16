@@ -106,13 +106,15 @@
           </packing>
         </child>
         <child>
-          <object class="GtkGLArea" id="gl">
-            <property name="width_request">100</property>
-            <property name="height_request">80</property>
+          <object class="GtkEventBox">
             <property name="visible">True</property>
-            <property name="app_paintable">True</property>
             <property name="can_focus">False</property>
-            <property name="auto_render">False</property>
+            <child>
+              <object class="GtkDrawingArea" id="da">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+              </object>
+            </child>
           </object>
           <packing>
             <property name="expand">True</property>

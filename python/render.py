@@ -1,9 +1,16 @@
+import OpenGL
+OpenGL.ERROR_ON_COPY = True 
+OpenGL.STORE_POINTERS = False 
 from OpenGL.GL import *
 from OpenGL.arrays import *
 from OpenGL.GL import shaders
-import pyshaders
-import pyglbuffers
+from OpenGL.arrays import vbo
+#import pyglet
+#pyglet.options['shadow_window']=False
+import myshaders
+#import pyglbuffers
 import time
+from ctypes import *
 from math import sin
 
 import cProfile
@@ -28,6 +35,7 @@ class glcommon:
     textures = None
     bright = 4
     graticule = None
+    gratlen = None
     frames = 0
     total = 0.0
     start_tick = None
@@ -43,12 +51,13 @@ class glcommon:
 def draw_graticule():
     glcommon.trivial_shader.use()
     glcommon.trivial_shader.uniforms.color = (0.25, 0.25, 0.25, 1.0)
-    glcommon.graticule.bind(target=GL_ARRAY_BUFFER)
+    #glcommon.graticule.bind(target=GL_ARRAY_BUFFER)
+    glBindBuffer(GL_ARRAY_BUFFER, glcommon.graticule)
 
     c2d = glcommon.trivial_shader.attributes.coord2d
     c2d.enable()
     c2d.point_to(0, GL_FLOAT, 2, False, 0)
-    glDrawArrays(GL_LINES, 0, 2*len(glcommon.graticule))
+    glDrawArrays(GL_LINES, 0, 2*glcommon.gratlen)
     glcommon.trivial_shader.clear()
 
 def gl_render(area, context):
@@ -87,9 +96,10 @@ def gen_line(vbo):
 def gl_init_python(ver, frag):
     #gl_version = float(glGetString(GL_VERSION).split(b" ")[0])
     GL3 = False #gl_version >= 3
-    glcommon.shader = pyshaders.from_files_names(ver, frag)
+    glcommon.shader = myshaders.from_files_names(ver, frag)
     shader = glcommon.shader
     shader.use()
+    print(shader.uniforms)
     shader.uniforms.nwaves = NWAVES
     shader.uniforms.mytexture = 0
     if GL3:
@@ -98,11 +108,12 @@ def gl_init_python(ver, frag):
     glPointSize(2)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA,GL_ONE)
+    glcommon.vbo = glGenBuffers(1)
+    gen_line(glcommon.vbo)
     c1d = shader.attributes.coord1d
     c1d.enable()
     c1d.point_to(0, GL_FLOAT, 1, False, 0)
-    glcommon.vbo = glGenBuffers(1)
-    gen_line(glcommon.vbo)
+    #c1d.point_to(0, GL_FLOAT, 1, False, None) #glcommon.vbo)
     shader.clear()
 
     # glGenTextures returns either an array (if n>1) or an int (if n==1), which is unhelpful
@@ -119,7 +130,7 @@ def gl_init_python(ver, frag):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 
 
-    glcommon.trivial_shader = pyshaders.from_files_names("graticule.v.glsl", "graticule.f.glsl")
+    glcommon.trivial_shader = myshaders.from_files_names("graticule.v.glsl", "graticule.f.glsl")
     glcommon.graticule = make_graticule(8,6,5,5)
 
 def make_graticule(xticks, yticks, xt, yt):
@@ -147,8 +158,18 @@ def make_graticule(xticks, yticks, xt, yt):
     points += [ ((right, y/(yt*yticks)*height+bot),
                  (right-ticksize, y/(yt*yticks)*height+bot)) for y in range(yt*yticks+1) ]
 
-    buf = pyglbuffers.Buffer.array('(2f)[start](2f)[end]')
-    buf.init(points)
+    glcommon.gratlen = len(points)
+    if False:
+        buf = pyglbuffers.Buffer.array('(2f)[start](2f)[end]')
+        buf.init(points)
+    else:
+        points = [item for sublist in points for item in sublist]
+        points = [item for sublist in points for item in sublist]
+        buf = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, buf)
+        array_type = (GLfloat * len(points))
+        glBufferData(GL_ARRAY_BUFFER, len(points)*4, array_type(*points), GL_STATIC_DRAW)
+        
     return buf
 
 def make_test_waveform():
@@ -176,15 +197,15 @@ def python_display():
     glBindBuffer(GL_ARRAY_BUFFER, glcommon.vbo)
     c1d = glcommon.shader.attributes.coord1d
     c1d.enable()
-    c1d.point_to(0, GL_FLOAT, 1, False, 0)
+    #glcommon.vbo.bind()
+    c1d.point_to(0, GL_FLOAT, 1, False, 0)#glcommon.vbo)
 
     scale = 4*glcommon.bright/NWAVES/2
     glcommon.shader.use()
     u = glcommon.shader.uniforms
     u.nxtiles = NTEXTURES
     u.color =  [ 4*scale,2*scale,0.5*scale ]
-
-    u.offset_x2 = glcommon.frames*0.001
+    u.offset_x2 = 0#glcommon.frames*0.001
     WIDTH = 1000
     HEIGHT = 800
     for j in range(NTEXTURES):

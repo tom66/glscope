@@ -1,4 +1,5 @@
 #version 120
+#extension GL_OES_EGL_image_external : enable
 attribute float coord1d;
 //varying vec4 f_color;
 uniform float offset_x;
