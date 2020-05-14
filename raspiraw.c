@@ -961,7 +961,8 @@ int main(int argc, char** argv) {
 		vcos_log_error("No sensor found. Aborting");
 		return -1;
 	}
-
+	
+	cfg.mode = 0;
 	if (cfg.mode >= 0 && cfg.mode < sensor->num_modes)
 	{
 		sensor_mode = &sensor->modes[cfg.mode];
@@ -1188,6 +1189,7 @@ int main(int argc, char** argv) {
 		rx_cfg.data_lanes = sensor_mode->data_lanes;
 	if (sensor_mode->image_id)
 		rx_cfg.image_id = sensor_mode->image_id;
+	vcos_log_error("Image ID: 0x%02x", sensor_mode->image_id);
 	status = mmal_port_parameter_set(output, &rx_cfg.hdr);
 	if (status != MMAL_SUCCESS)
 	{

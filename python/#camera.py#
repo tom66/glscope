@@ -1,0 +1,19 @@
+import numpy
+import rawcam
+
+
+def camera_get():
+    for i in range(rawcam.buffer_count()):
+        buf = rawcam.buffer_get()
+        print ("got buf %s, len=%d, idx=%d" % (buf,len(buf),j))
+
+        arr=numpy.frombuffer(buf,dtype='uint8') # yes this is zerocopy
+        #print ("average sample value %d" % (arr.sum()/len(arr)))
+        #print(j)
+        if (1):
+            open(("rxtest/%02d.bin" % j),"wb").write(buf)
+
+        # do other stuff with buffer contents
+
+        rawcam.buffer_free(buf)
+        

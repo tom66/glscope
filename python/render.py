@@ -133,6 +133,17 @@ def gl_init_python(ver, frag):
     glcommon.trivial_shader = myshaders.from_files_names("graticule.v.glsl", "graticule.f.glsl")
     glcommon.graticule = make_graticule(8,6,5,5)
 
+def set_buffer(buf):
+    for i in range(NTEXTURES):
+        glBindTexture(GL_TEXTURE_2D, glcommon.texid[i])
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED if GL3 else GL_LUMINANCE, TEXSIZE, NWAVES, 0,
+                     GL_LUMINANCE16 if SIXTEEN_BIT else GL_LUMINANCE,
+                     GL_UNSIGNED_SHORT if SIXTEEN_BIT else GL_UNSIGNED_BYTE,
+                     glcommon.textures[i])6
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)    
+
 def make_graticule(xticks, yticks, xt, yt):
     left = bot = -1.0
     right = top = 0.995

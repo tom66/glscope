@@ -26,10 +26,10 @@ bool interpolate = false;
 bool clamp = false;
 bool showpoints = false;
 
-#define NPOINTS 2048
+#define NPOINTS 8192
 #define TEXSIZE 2048
 #define NTEXTURES (NPOINTS/TEXSIZE)
-#define NWAVES 200
+#define NWAVES 400
 
 GLuint vbo;
 GLbyte graph[NTEXTURES][TEXSIZE * NWAVES];

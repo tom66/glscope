@@ -50,7 +50,7 @@ bool interpolate = false;
 bool clamp = false;
 bool showpoints = false;
 
-#define NPOINTS 3072
+#define NPOINTS 8192
 #define TEXSIZE 1024
 #define NTEXTURES (NPOINTS/TEXSIZE)
 #define NWAVES 70

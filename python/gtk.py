@@ -61,9 +61,41 @@ def new_gdk_window():
     print ("window",w)
     w.show()
     
+def camera_init():
+    rc = rawcam.init() # initializes camera interface, returns config object
 
+    rawcam.set_timing(0, 0, 0, 0, 0, 0, 0)
+    rawcam.set_data_lanes(2)
+    rawcam.set_image_id(0x2a)
+    rawcam.set_camera_num(1)
+    rawcam.set_buffer_size(2048 * 128)
+    rawcam.set_buffer_num(4)
+    rawcam.set_buffer_dimensions(2048, 128)
+    rawcam.set_pack_mode(0)
+    rawcam.set_unpack_mode(0)
+    rawcam.set_unpack_mode(0)
+    rawcam.set_encoding_fourcc(ord('G'), ord('R'), ord('G'), ord('B'))
+    #rawcam.set_encode_block_length(32)
+    #rawcam.set_embedded_data_lines(32)
+    rawcam.format_commit()
+    rawcam.set_zero_copy(1)
+    rawcam.debug()
 
-da.add_tick_callback(redraw)
+    rawcam.start()
+    return rawcam.get_eventfd()
+
+def got_camera():
+    n = rawcam.buffer_count()
+    assert (n)
+    buf = rawcam.buffer_get()
+    if n>1:
+        print("discarding %d buffers" % (n-1))
+        for i in range(n-1):
+            rawcam.buffer_free(rawcam.buffer_get())
+    render.set_buffer(buf)
+    da.redraw()
+
+#da.add_tick_callback(redraw)
 #new_gdk_window()
 #gl.connect('render',render.gl_render)
 #gl.connect('realize', area_realize)
@@ -76,6 +108,10 @@ print("python dpy=",dpy," win=",daxid)
 import scope
 scope.get_egl_ctx(dpy,daxid)
 import render
+import camera
+cam_src = GLib.Source()
+cam_src.add_unix_fd(camera_init())
+cam_src.set_callback(got_camera)
 #root=Gdk.get_default_root_window()
 #scr=Gdk.Display.get_default_screen()
 print("foo")
