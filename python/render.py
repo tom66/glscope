@@ -39,14 +39,10 @@ class glcommon:
     frames = 0
     total = 0.0
     start_tick = None
+    texid = None
     
-#def bright_cb(self):
-#    global scope, gl
-#    br = self.get_value()
-#    print ("br=%d" % br)
-#    #scope.set_bright(br/5)
-#    glcommon.bright = br/5
-#    gl.queue_render()
+def set_bright(br):
+    glcommon.bright = br/5
 
 def draw_graticule():
     glcommon.trivial_shader.use()
@@ -134,12 +130,16 @@ def gl_init_python(ver, frag):
     glcommon.graticule = make_graticule(8,6,5,5)
 
 def set_buffer(buf):
+    global first_render
+    if first_render:
+        return
+    GL3 = False
     for i in range(NTEXTURES):
         glBindTexture(GL_TEXTURE_2D, glcommon.texid[i])
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED if GL3 else GL_LUMINANCE, TEXSIZE, NWAVES, 0,
                      GL_LUMINANCE16 if SIXTEEN_BIT else GL_LUMINANCE,
                      GL_UNSIGNED_SHORT if SIXTEEN_BIT else GL_UNSIGNED_BYTE,
-                     glcommon.textures[i])6
+                     buf[TEXSIZE*NWAVES*i:TEXSIZE*NWAVES*(i+1)])
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)    

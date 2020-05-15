@@ -2,6 +2,7 @@
 import os
 os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import gi
+import numpy
 #import OpenGL
 #OpenGL.FULL_LOGGING = True
 #import logging
@@ -15,6 +16,11 @@ builder.add_from_file("test.glade")
 # objects in the .glade file
 obtemplate = ["scopewin", "brightadj", "brightscale", "da"]
 ob = {i: builder.get_object(i) for i in obtemplate }
+
+def bright_cb(self):
+    br = self.get_value()
+    render.set_bright(br)
+    print ("br=%d" % br)
 
 #def bright_cb(self):
 #    global scope, gl
@@ -34,7 +40,7 @@ da = ob['da']
 #print(object_methods)
 ob['scopewin'].show_all()
 ob['brightadj'].set_value(19)
-#ob['brightadj'].connect("value-changed", bright_cb)
+ob['brightadj'].connect("value-changed", bright_cb)
 #win = Gtk.Window()
 #win.connect("destroy", Gtk.main_quit)
 #win.show_all()
@@ -63,37 +69,51 @@ def new_gdk_window():
     
 def camera_init():
     rc = rawcam.init() # initializes camera interface, returns config object
-
-    rawcam.set_timing(0, 0, 0, 0, 0, 0, 0)
-    rawcam.set_data_lanes(2)
-    rawcam.set_image_id(0x2a)
-    rawcam.set_camera_num(1)
-    rawcam.set_buffer_size(2048 * 128)
-    rawcam.set_buffer_num(4)
-    rawcam.set_buffer_dimensions(2048, 128)
-    rawcam.set_pack_mode(0)
-    rawcam.set_unpack_mode(0)
-    rawcam.set_unpack_mode(0)
-    rawcam.set_encoding_fourcc(ord('G'), ord('R'), ord('G'), ord('B'))
-    #rawcam.set_encode_block_length(32)
-    #rawcam.set_embedded_data_lines(32)
-    rawcam.format_commit()
+ 
+    if 1:
+        rawcam.set_data_lanes(2)
+        rawcam.set_image_id(0x2a)
+        #rawcam.set_timing(0, 0, 0, 0, 0, 0, 0)
+        rawcam.set_camera_num(1)
+        rawcam.set_buffer_size(2048 * 128)
+        rawcam.set_buffer_num(4)
+        rawcam.set_buffer_dimensions(2048, 128)
+        rawcam.set_pack_mode(0)
+        rawcam.set_unpack_mode(0)
+        rawcam.set_unpack_mode(0)
+        #rawcam.set_encode_block_length(32)
+        #rawcam.set_embedded_data_lines(32)
+        rawcam.set_encoding_fourcc(ord('G'), ord('R'), ord('B'), ord('G'))
+    else:
+        rawcam.set_buffer_dimensions(640, 480)
+        
     rawcam.set_zero_copy(1)
     rawcam.debug()
 
     rawcam.start()
     return rawcam.get_eventfd()
 
-def got_camera():
+def got_camera(self,clock):
+    #print ("got_camera")
+    count = cam_src.read(8)
     n = rawcam.buffer_count()
+    
     assert (n)
     buf = rawcam.buffer_get()
+    #print ("got buf %s, len=%d" % (buf,len(buf)))
+
     if n>1:
         print("discarding %d buffers" % (n-1))
         for i in range(n-1):
             rawcam.buffer_free(rawcam.buffer_get())
+    arr=numpy.frombuffer(buf,dtype='uint8') # yes this is zerocopy
+    #print ("average sample value %d" % (arr.sum()/len(arr)))
+
     render.set_buffer(buf)
-    da.redraw()
+    redraw(self, clock)
+    rawcam.buffer_free(buf) # FIXME
+    #print("returning true")
+    return True
 
 #da.add_tick_callback(redraw)
 #new_gdk_window()
@@ -108,13 +128,14 @@ print("python dpy=",dpy," win=",daxid)
 import scope
 scope.get_egl_ctx(dpy,daxid)
 import render
-import camera
-cam_src = GLib.Source()
-cam_src.add_unix_fd(camera_init())
-cam_src.set_callback(got_camera)
+import sys
+sys.path.append('../../rawcamII')
+
+import rawcam
+cam_src = GLib.IOChannel(camera_init())
+GLib.io_add_watch(cam_src,GLib.IO_IN,got_camera)
 #root=Gdk.get_default_root_window()
 #scr=Gdk.Display.get_default_screen()
-print("foo")
 Gtk.main()
 exit()
 import cProfile
