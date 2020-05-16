@@ -15,11 +15,11 @@ from math import sin
 
 import cProfile
 
-NPOINTS = 1024 #2048
+NPOINTS = 8192 #2048
 MAX_DRAWARRAYS = 65535 #GL_MAX_ELEMENTS_VERTICES
 TEXSIZE = 1024 #2048
 NTEXTURES = int(NPOINTS/TEXSIZE)
-NWAVES = 120 # 256
+NWAVES = 10 # 256
 WAVE_STRIDE = 60
 
 GTK = False
@@ -42,7 +42,7 @@ class glcommon:
     texid = None
     
 def set_bright(br):
-    glcommon.bright = br/5
+    glcommon.bright = br/5.0
 
 def draw_graticule():
     glcommon.trivial_shader.use()
@@ -222,6 +222,7 @@ def python_display():
     for j in range(NTEXTURES):
         glBindTexture(GL_TEXTURE_2D, glcommon.texid[j])
         u.xtile = (j*2-NTEXTURES+1.0)/NTEXTURES
+        print("u.xtile=%.3f" % u.xtile)
         for i in range(0,NWAVES,WAVE_STRIDE):
             u.wavenum = (2*i+1.0)/(2*NWAVES)
             glDrawArrays(GL_POINTS, 0, NPOINTS*(WAVE_STRIDE if NWAVES-i>WAVE_STRIDE else NWAVES-i))

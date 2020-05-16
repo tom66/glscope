@@ -20,7 +20,7 @@ ob = {i: builder.get_object(i) for i in obtemplate }
 def bright_cb(self):
     br = self.get_value()
     render.set_bright(br)
-    print ("br=%d" % br)
+    print ("br=%.2f" % br)
 
 #def bright_cb(self):
 #    global scope, gl
